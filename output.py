@@ -179,3 +179,23 @@ def startUpdates():
     Database.updateSoftware()
     print('{:*^80}'.format(' Aktualisierungen abgeschlossen '))
     printSoftwareTable()
+
+
+def uninstallOldSoftware():
+    """
+    Lässt Software löschen, die aus der Repository entfernt wurde.
+    """
+    slugs = Database.getOldSoftware()
+    if len(slugs) < 1: return
+
+    print()
+    print('{:*^80}'.format(' Entferne veraltete Software… '))
+    for s in slugs:
+        print(Fore.BLUE + 'Software %s wird entfernt…' % s + Style.RESET_ALL)
+        if not Database.isSlugSafeToUninstall(s):
+            print(Fore.RED + 'FEHLER: Software wird noch in Abhängigkeiten '
+                  'geführt!' + Style.RESET_ALL)
+            exit()
+        Database.uninstallOldSlug(s)
+    print('{:*^80}'.format(' Veraltete Software entfernt. '))
+    printSoftwareTable()

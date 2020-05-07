@@ -48,9 +48,12 @@ class Software:
     REPEATEDRUN = 40
     ERROR = -2
 
-    # Verzeichnis mit den gecachten Deinstallationsskripten
+    # Verzeichnis mit den gecachten Deinstallationsskripten.
     dirUninstaller = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                   'uninstaller')
+
+    # Zielverzeichnis, in dem Software installiert werden soll.
+    dirTarget = ''
 
     def __init__(self, path):
         """

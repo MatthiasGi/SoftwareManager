@@ -1,5 +1,7 @@
 import os
 import semver
+import subprocess
+import sys
 import yaml
 
 from software import Software
@@ -146,6 +148,53 @@ class Database:
             currVer = Database.database[slug].get('version') or '0.0.0'
             if software.getVersion() > semver.VersionInfo.parse(currVer):
                 software.update(currVer)
+
+    @staticmethod
+    def getOldSoftware():
+        """
+        Gibt die Slugs veralteter Software zurück, die nicht mehr in der
+        Repository ist, aber noch in der Datenbank.
+        """
+        return [s for s in Database.database.keys()
+                if not s in Database.software]
+
+    @staticmethod
+    def isSlugSafeToUninstall(slug):
+        """
+        Ermittelt, ob die mit dem entsprechenden Slug bezeichneten Software
+        deinstalliert werden kann, oder ob es Abhängigkeiten gibt.
+
+        Parameters
+        ----------
+        slug : str
+            Slug der zu überprüfenden Software.
+
+        Returns
+        -------
+        False, sofern es mindestens eine Abhängigkeit in der noch installierten
+        und nicht veralteten Software gibt. True, falls dies nicht der Fall ist
+        und die Software damit sicher deinstalliert werden kann.
+        """
+        for software in Database.software.values():
+            if slug in software.getDependencies(): return False
+        return True
+
+    @staticmethod
+    def uninstallOldSlug(slug):
+        """
+        Deinstalliert veraltete Software nach Slug. Wenn es Abhängigkeiten von
+        dieser Software gibt, wird der Vorgang abgebrochen.
+        """
+        if slug in Database.software: return
+        if not Database.isSlugSafeToUninstall(slug): return
+        uninstaller = os.path.join(Software.dirUninstaller, slug + '.py')
+        if os.path.exists(uninstaller):
+            subprocess.check_call([sys.executable, slug + '.py',
+                                   Software.dirTarget],
+                                  cwd=Software.dirUninstaller)
+            os.remove(uninstaller)
+        del Database.database[slug]
+        Database.save()
 
 
 Database.init()

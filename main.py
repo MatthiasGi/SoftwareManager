@@ -7,6 +7,7 @@ def main():
     output.header('SoftwareManager')
     output.loadSoftware()
     output.printSoftwareTable()
+    output.uninstallOldSoftware()
     output.startInstalls()
     output.startUpdates()
 
