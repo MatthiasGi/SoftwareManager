@@ -1,17 +1,12 @@
-from software import Software
-from config import Config
-import time
-import output
+import os
+import subprocess
+import sys
 
+# Startet das eigentliche Skript nachdem die Repository geupdated wurde.
 def main():
-    output.header('SoftwareManager')
-    output.loadSoftware()
-    output.printSoftwareTable()
-    output.uninstallOldSoftware()
-    output.startInstalls()
-    output.startUpdates()
+    dir = os.path.dirname(os.path.abspath(__file__))
+    subprocess.check_call(['git', 'pull'], cwd=dir)
+    subprocess.check_call([sys.executable, 'SoftwareManager.py'], cwd=dir)
 
 if __name__ == '__main__':
-    output.init()
     main()
-    output.deinit()
