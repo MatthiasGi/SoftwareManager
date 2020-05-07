@@ -1,5 +1,6 @@
 import os
 import semver
+import shutil
 import subprocess
 import sys
 import yaml
@@ -46,6 +47,10 @@ class Software:
     AUTOSTARTED = 30
     REPEATEDRUN = 40
     ERROR = -2
+
+    # Verzeichnis mit den gecachten Deinstallationsskripten
+    dirUninstaller = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                  'uninstaller')
 
     def __init__(self, path):
         """
@@ -132,14 +137,21 @@ class Software:
         if self.state != Software.UNINSTALLED: return
         from database import Database
 
+        # Überprüfung, ob Installations- und Deinstallationsskript vorhanden
+        # sind, denn ansonsten schlägt die Installation später fehl.
+        if not os.path.exists(os.path.join(self.path, 'install.py')):
+            return self.setError('Kein Installationsskript vorhanden.')
+        if not os.path.exists(os.path.join(self.path, 'uninstall.py')):
+            return self.setError('Kein Deinstallationsskript vorhanden.')
+
         # PIP-Dependencies
         self.setState(Software.INSTALLING_PIP_DEPENDENCIES)
-        for d in self._getDeps('pip'):
+        for d in self.getPipDependencies():
             subprocess.check_call([sys.executable, '-m', 'pip', 'install', d])
 
         # Dependencies
         self.setState(Software.INSTALLING_DEPENDENCIES)
-        for d in self._getDeps('dependencies'):
+        for d in self.getDependencies():
             software = Database.software.get(d)
             if software is None:
                 return self.setError('Abhängigkeit ist nicht in der '
@@ -149,15 +161,26 @@ class Software:
                 return self.setError('Installation konnte nicht abgeschlossen '
                                      'werden.')
 
-        # Installing
-        if not os.path.exists(os.path.join(self.path, 'install.py')):
-            return self.setError('Kein Installationsskript vorhanden.')
+        # Installationsskript ausführen
         self.setState(Software.INSTALLING)
         subprocess.check_call([sys.executable, 'install.py',
                                Software.dirTarget], cwd=self.path)
 
+        # Deinstallationsskript cachen
+        self.cacheUninstaller()
+
         # Fertig installiert
         self.setState(Software.INSTALLED)
+
+    def cacheUninstaller(self):
+        """
+        Sichert das Deinstallationsskript, damit dieses später ausgeführt
+        werden kann, wenn beispielsweise die Software nicht mehr in der
+        Repository vorhanden ist.
+        """
+        src = os.path.join(self.path, 'uninstall.py')
+        dst = os.path.join(Software.dirUninstaller, self.slug + '.py')
+        shutil.copyfile(src, dst)
 
     def update(self, currentVersion):
         """
@@ -180,6 +203,7 @@ class Software:
             subprocess.check_call([sys.executable, 'update.py',
                                    Software.dirTarget, str(currentVersion)],
                                   cwd=self.path)
+            self.cacheUninstaller()
         else:
             # Wenn es kein Updateskript gibt, dann eben löschen und neu
             # installieren
@@ -197,8 +221,9 @@ class Software:
         """
         if not self.isInstalled(): return
         if not os.path.exists(os.path.join(self.path, 'uninstall.py')): return
-        subprocess.check_call([sys.executable, 'uninstall.py',
-                               Software.dirTarget], cwd=self.path)
+        subprocess.check_call([sys.executable, self.slug + '.py',
+                               Software.dirTarget],
+                              cwd=Software.dirUninstaller)
         self.setState(Software.UNINSTALLED)
 
     def setError(self, msg):

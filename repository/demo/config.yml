@@ -1,4 +1,4 @@
 name: 'Demo'
 version: '0.0.1'
 pip: ['numpy', 'scipy']
-dependencies: ['_dependency']
+dependencies: ['dependency']

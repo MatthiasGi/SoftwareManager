@@ -173,6 +173,7 @@ def startUpdates():
     """
     Startet die Aktualisierungen aller betoffenen Software.
     """
+    print()
     print('{:*^80}'.format(' Starte Aktualisierungen… '))
     print(Fore.BLUE + 'Überprüfe einzelne Einträge…' + Style.RESET_ALL)
     Database.updateSoftware()
