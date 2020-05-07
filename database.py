@@ -156,7 +156,7 @@ class Database:
         Repository ist, aber noch in der Datenbank.
         """
         return [s for s in Database.database.keys()
-                if not s in Database.software]
+                if s not in Database.software]
 
     @staticmethod
     def isSlugSafeToUninstall(slug):

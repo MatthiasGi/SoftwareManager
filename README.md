@@ -1,5 +1,6 @@
 # SoftwareManager
-Tool, das Skripte automatisiert installieren und ausführen kann.
+Tool, das Skripte automatisiert installieren und ausführen kann. Zum Ausführen
+`SoftwareManager.py` starten, `main.py` führt vorher noch ein `git pull` durch.
 
 ## Voraussetzungen
 Damit dieses Programm vernünftig laufen kann, benötigt es eine Python-Umgebung.
