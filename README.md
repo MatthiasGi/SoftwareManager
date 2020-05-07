@@ -27,7 +27,7 @@ Folgende Bedeutung haben die einzelnen Werte:
 - **name**: Ein lesbarer Name, der dem Nutzer statt des Slugs angezeigt werden
   kann
 - **version**: Eine Versionsnummer nach
-  [https://semver.org/lang/de/spec/v2.0.0.html](Semantic Versioning 2.0.0), die
+  [Semantic Versioning 2.0.0](https://semver.org/lang/de/spec/v2.0.0.html), die
   zur Versionierung der Software genutzt werden kann. Steht in der Repository
   eine aktuellere Version als in der Datenbank zur Verfügung, wird sie
   geupdatet.
