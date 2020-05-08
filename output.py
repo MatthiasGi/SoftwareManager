@@ -139,7 +139,6 @@ def getSoftwareState(software):
         Software.UPDATING: 'Aktualisiere…',
         Software.UPDATED: 'Aktualisiert',
         Software.AUTOSTARTED: 'Automatisch gestartet',
-        Software.REPEATEDRUN: 'Wird wiederholt gestartet',
         Software.ERROR: 'FEHLER',
     }
 
@@ -199,3 +198,26 @@ def uninstallOldSoftware():
         Database.uninstallOldSlug(s)
     print('{:*^80}'.format(' Veraltete Software entfernt. '))
     printSoftwareTable()
+
+
+def autostartSoftware():
+    """
+    Startet Software, die automatisch einmalig ausgeführt werden möchte.
+    """
+    print()
+    print('{:*^80}'.format(' Starte Software… '))
+    print(Fore.BLUE + 'Lösche alte Logdateien… ' + Style.RESET_ALL, end='')
+    Software.deleteOldLogs()
+    print(Fore.GREEN + 'ok' + Style.RESET_ALL)
+
+    startableSoftware = [s for s in Database.software.values()
+                         if s.isRunnable()]
+    if len(startableSoftware) < 1:
+        print(Fore.BLUE + 'Keine automatisch startende Software vorhanden.'
+              + Style.RESET_ALL)
+
+    for s in startableSoftware:
+        print('Starte ' + s.getName() + '…')
+        s.run()
+
+    print('{:*^80}'.format(' Software gestartet '))

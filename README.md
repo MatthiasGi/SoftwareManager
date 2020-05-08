@@ -23,6 +23,7 @@ name: 'Testsoftware'
 version: '1.0.0'
 pip: ['numpy', 'scipy']
 dependencies: ['testdependency']
+run: 'start.py'
 ```
 Folgende Bedeutung haben die einzelnen Werte:
 - **name**: Ein lesbarer Name, der dem Nutzer statt des Slugs angezeigt werden
@@ -37,6 +38,9 @@ Folgende Bedeutung haben die einzelnen Werte:
   Abhängigkeiten dieses Skripts enthalten.
 - **dependencies**: Liste von Software-Slugs, von der diese Software abhängt.
   Werden vor der Ausführung des Installationsskripts installiert.
+- **run**: Skript im Zielverzeichnis der Software, das beim Start des Managers
+  ausgeführt werden soll. Existiert dieser Eintrag nicht, wird auf eine
+  automatische Ausführung entsprechend verzichtet.
 
 ### Installationsskript: install.py
 Das Installationsskript soll die Installation der eigentlichen Software

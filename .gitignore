@@ -3,3 +3,5 @@ __pycache__
 /config.yml
 /database.yml
 uninstaller/*.py
+log/*
+!log/.gitkeep

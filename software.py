@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+from glob import glob
 import os
 import semver
 import shutil
@@ -28,6 +30,9 @@ class Software:
     error_msg : str
         Fehlermeldung, die beim Setzen des Fehlerstatus mit Informationen
         befüllt wird.
+    process : subprocess
+        Objekt, das mit einer subprocess-Instanz befüllt ist, wenn die Software
+        läuft. Kann beispielsweise genutzt werden, um die Software zu beenden.
     """
 
     # Liste mit methoden, die über Änderungen eines Softwarestatus informiert
@@ -45,15 +50,13 @@ class Software:
     UPDATING = 15
     UPDATED = 20
     AUTOSTARTED = 30
-    REPEATEDRUN = 40
     ERROR = -2
-
-    # Verzeichnis mit den gecachten Deinstallationsskripten.
-    dirUninstaller = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                  'uninstaller')
 
     # Zielverzeichnis, in dem Software installiert werden soll.
     dirTarget = ''
+
+    # Verzeichnis, in dem Logdateien abgelegt werden sollen.
+    dirLog = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'log')
 
     def __init__(self, path):
         """
@@ -69,6 +72,25 @@ class Software:
         with open(os.path.join(self.path, 'config.yml'), 'r') as f:
             self.config = yaml.full_load(f) or {}
         self.state = Software.UNKNOWN
+        self.process = None
+
+    @staticmethod
+    def deleteOldLogs():
+        """
+        Löscht veraltete Logdateien im geteilten Verzeichnis aller Software.
+        """
+        files = glob(os.path.join(Software.dirLog, '*', '*.log'))
+        killtime = (datetime.now() - timedelta(days=7)).timestamp()
+        filesOld = [f for f in files if os.path.getmtime(f) < killtime]
+        for f in filesOld: os.remove(f)
+
+        # Nun leere Verzeichnisse ebenfalls löschen – gehören nämlich bestimmt
+        # zu deinstallierter Software
+        folders = glob(os.path.join(Software.dirLog, '*'))
+        for folder in folders:
+            if not os.path.isdir(folder): continue
+            if os.listdir(folder): continue
+            os.rmdir(folder)
 
     @staticmethod
     def setTargetDir(dirTarget):
@@ -167,7 +189,7 @@ class Software:
         # Installationsskript ausführen
         self.setState(Software.INSTALLING)
         subprocess.check_call([sys.executable, 'install.py',
-                               Software.dirTarget], cwd=self.path)
+                               self.getTargetDir()], cwd=self.path)
 
         # Deinstallationsskript cachen
         self.cacheUninstaller()
@@ -181,9 +203,8 @@ class Software:
         werden kann, wenn beispielsweise die Software nicht mehr in der
         Repository vorhanden ist.
         """
-        src = os.path.join(self.path, 'uninstall.py')
-        dst = os.path.join(Software.dirUninstaller, self.slug + '.py')
-        shutil.copyfile(src, dst)
+        shutil.copyfile(os.path.join(self.path, 'uninstall.py'),
+                        self.getUninstaller())
 
     def update(self, currentVersion):
         """
@@ -204,7 +225,7 @@ class Software:
         if os.path.exists(os.path.join(self.path, 'update.py')):
             # Wenn es ein Updateskript gibt: Ausführen
             subprocess.check_call([sys.executable, 'update.py',
-                                   Software.dirTarget, str(currentVersion)],
+                                   self.getTargetDir(), str(currentVersion)],
                                   cwd=self.path)
             self.cacheUninstaller()
         else:
@@ -223,11 +244,23 @@ class Software:
         Deinstalliert die Software anhand des Deinstallationsskripts.
         """
         if not self.isInstalled(): return
-        if not os.path.exists(os.path.join(self.path, 'uninstall.py')): return
-        subprocess.check_call([sys.executable, self.slug + '.py',
-                               Software.dirTarget],
-                              cwd=Software.dirUninstaller)
+        uninstaller = self.getUninstaller()
+        subprocess.check_call([sys.executable, os.path.basename(uninstaller),
+                               self.getTargetDir()],
+                              cwd=os.path.dirname(uninstaller))
+        os.remove(uninstaller)
         self.setState(Software.UNINSTALLED)
+
+    def getUninstaller(self):
+        """
+        Gibt den Pfad zum Deinstallationsskript dieser Software zurück.
+
+        Returns
+        -------
+        Pfad, an dessen Stelle sich das Deinstallationsskript befinden sollte.
+        """
+        return os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            'uninstaller', self.slug + '.py')
 
     def setError(self, msg):
         """
@@ -286,3 +319,47 @@ class Software:
         laut Repository.
         """
         return semver.VersionInfo.parse(self.config.get('version', '0.0.0'))
+
+    def getTargetDir(self):
+        """
+        Gibt das für die aktuelle Software spezifische Zielverzeichnis zurück.
+
+        Returns
+        -------
+        Das für diese Software spezifische Zielverzeichnis: globales
+        Zielverzeichnis mit angehängtem Slug.
+        """
+        return os.path.join(Software.dirTarget, self.slug)
+
+    def isRunnable(self):
+        """
+        Überprüft, ob die aktuelle Software ausführbar ist, also ein Skript in
+        der Konfiguration bezeichnet ist, das beim Start des Managers nach der
+        Installation und Aktualisierung gestartet werden soll.
+
+        Returns
+        -------
+        Ob die Software ausgeführt werden möchte.
+        """
+        return self.config.get('run')
+
+    def run(self):
+        """
+        Führt das Skript aus, das in der Konfiguration für diese Software unter
+        dem Schlüssel `key` bezeichnet ist.
+        """
+        if not self.isRunnable(): return
+
+        logpath = os.path.join(Software.dirLog, self.slug)
+        if not os.path.exists(logpath): os.makedirs(logpath)
+        basetime = datetime.now().strftime('%Y-%m-%d-%H%M%S')
+        logStdout = os.path.join(logpath, basetime + '_stdout.log')
+        logStderr = os.path.join(logpath, basetime + '_stderr.log')
+
+        with open(logStdout, 'wb', encoding='utf-8') as out, \
+                open(logStderr, 'wb', encoding='utf-8') as err:
+            self.process = subprocess.Popen(
+                [sys.executable, self.config.get('run')],
+                cwd=self.getTargetDir(), stdout=out, stderr=err)
+
+        self.setState(Software.AUTOSTARTED)

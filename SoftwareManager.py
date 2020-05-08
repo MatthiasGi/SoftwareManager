@@ -8,9 +8,19 @@ def main():
     output.uninstallOldSoftware()
     output.startInstalls()
     output.startUpdates()
+    output.autostartSoftware()
+    output.printSoftwareTable()
+
+    try:
+        while True:
+            pass
+    except KeyboardInterrupt:
+        print('Beende…')
+        pass
 
 
 if __name__ == '__main__':
     output.init()
     main()
     output.deinit()
+    exit(0)
